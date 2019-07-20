@@ -1243,7 +1243,7 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 
 			sData.Mods = StringToUInt32(ScoreData[score_Mods]);
 
-			if (sData.Mods & (Mods::Relax2 | Mods::Autoplay | (1 << 29)
+			if (sData.Mods & (Mods::Relax2 | Mods::Autoplay 
 			#ifdef NO_RELAX
 				| Mods::Relax
 			#endif
@@ -1358,7 +1358,7 @@ void ScoreServerHandle(const _HttpRes &res, _Con s){
 
 #ifndef NO_RELAX
 					if (PP < 30000.f){
-						if (((sData.Mods & Relax) && PP > 1400.f) || (!(sData.Mods & Relax) && PP > 700.f)) {
+						if (((sData.Mods & Relax) && PP > 12000.f) || (!(sData.Mods & Relax) && PP > 7000.f)) {
 							std::thread t(RestrictUser, (_User*)0, "", UserID, "Restricted due too high pp gain in a single play: " + std::to_string(PP));
 							t.detach();
 						}
@@ -1877,63 +1877,6 @@ namespace MIRROR {
 	}
 }
 
-void LastFM(_GetParams&& Params, _Con s){
-
-	enum {
-		RelifeRunning = 1 << 0,
-		Console = 1 << 1,
-		//1<<2 can false flag. Do not use.
-		InvalidName = 1 << 3,
-		InvalidFile = 1 << 4,
-		RelifeLoaded = 1 << 5
-	};
-
-	const int Flags = [&]{
-
-		auto B = Params.get(_WeakStringToInt_("b"));
-		
-		return (B.size() && B[0] == 'a') ? StringToInt32(B) : 0;
-	}();
-
-	if (Flags & (RelifeLoaded | Console | InvalidName | InvalidFile | RelifeLoaded)){
-
-		_UserRef u(GetUserFromNameSafe(USERNAMESAFE(std::string(Params.get(_WeakStringToInt_("us"))))), 1);
-
-		if (!(!u) && u->Password == _MD5(Params.get(_WeakStringToInt_("ha"))) && u->privileges & UserPublic){
-			
-			if (Flags != RelifeLoaded) {
-				for (DWORD i = 0; i < 16; i++)
-					u->addQue(bPacket::GenericString(0x69, "What did you think would happen?"));
-			}else u->addQue(bPacket::GenericString(0x69, "Please disable osu-relife or face a possible ban"));
-					   
-			const DWORD ID = u->UserID;
-
-			std::string FlagString;
-
-		#define FlagPrint(s) if(Flags & s)FlagString += "|"#s
-			FlagPrint(RelifeRunning);
-			FlagPrint(Console);
-			FlagPrint(InvalidName);
-			FlagPrint(InvalidFile);
-			FlagPrint(RelifeLoaded);
-		#undef FlagPrint
-
-			printf(KYEL "%i> Flags: %s\n" KRESET, ID, FlagString.c_str());
-
-			if (!(u->privileges & AdminDev) && Flags != RelifeLoaded){
-				std::thread t(RestrictUser, (_User*)0, "", ID, "Restricted for flags: " + FlagString);
-				t.detach();
-			}
-		}
-	}
-
-	s.SendData("HTTP/1.0 200 OK" MNL
-			   "Content-Length: 2" MNL
-				"Connection: close" DMNL
-				"-3");
-
-	return s.Dis();
-}
 
 #define IS_NUM(s)!(s < '0' || s > '9')
 
@@ -2038,8 +1981,8 @@ void HandleAria(_Con s){
 	}
 	else if (MEM_CMP_START(res.Host, "/web/osu-screenshot.php"))
 		UploadScreenshot(res, s);
-	else if (MEM_CMP_START(res.Host, "/web/lastfm.php"))
-		LastFM(_GetParams(std::string_view((const char*)&res.Host[0],res.Host.size())),s);
+	//else if (MEM_CMP_START(res.Host, "/web/lastfm.php"))
+		//LastFM(_GetParams(std::string_view((const char*)&res.Host[0],res.Host.size())),s);
 	else SendAria404(s);
 
 	if (!DontCloseConnection){
